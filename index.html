@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Four Rounds of Coherence</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    background: #f6f1e6;
+    color: #2a2e28;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+  }
+  .header {
+    background: #354838;
+    color: #fffaf0;
+    padding: 16px 20px;
+    text-align: center;
+  }
+  .header h1 {
+    margin: 0;
+    font-family: Georgia, serif;
+    font-size: 22px;
+    font-weight: normal;
+  }
+  .header p {
+    margin: 4px 0 0;
+    font-size: 14px;
+    opacity: 0.9;
+  }
+  .container {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+  .card {
+    background: #fffdf6;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  h2 {
+    font-family: Georgia, serif;
+    color: #354838;
+    margin: 0 0 12px;
+    font-size: 20px;
+  }
+  label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: bold;
+  }
+  input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border: 1px solid #c4a56a;
+    border-radius: 8px;
+    background: #fff;
+    color: #2a2e28;
+  }
+  button {
+    background: #435943;
+    color: white;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 20px;
+    font-size: 16px;
+    min-height: 44px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 8px;
+    font-family: Arial, sans-serif;
+  }
+  button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  button.secondary {
+    background: transparent;
+    color: #435943;
+    border: 1px solid #435943;
+  }
+  .round-list {
+    list-style: none;
+    padding: 0;
+    margin: 12px 0;
+  }
+  .round-list li {
+    margin-bottom: 8px;
+    padding-left: 0;
+  }
+  .item-header {
+    font-size: 14px;
+    color: #354838;
+    margin-bottom: 8px;
+  }
+  .task {
+    font-weight: bold;
+    margin-bottom: 12px;
+  }
+  .sentence-pair {
+    background: #f6f1e6;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 15px;
+  }
+  .answers button {
+    text-align: left;
+    margin-bottom: 8px;
+    background: #fffdf6;
+    color: #2a2e28;
+    border: 1px solid #c4a56a;
+  }
+  .answers button.correct {
+    border: 2px solid #354838;
+  }
+  .answers button.wrong {
+    border: 2px solid #7a3b2e;
+    color: #7a3b2e;
+  }
+  .feedback {
+    margin-top: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: #f6f1e6;
+  }
+  .feedback.correct-msg {
+    border-left: 4px solid #354838;
+  }
+  .feedback.wrong-msg {
+    border-left: 4px solid #7a3b2e;
+  }
+  .nav-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .nav-buttons button {
+    flex: 1;
+  }
+  .scoreboard {
+    margin-top: 20px;
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th, td {
+    padding: 8px 6px;
+    text-align: left;
+    border-bottom: 1px solid #e0d8c8;
+  }
+  th {
+    background: #354838;
+    color: #fffaf0;
+  }
+  tr.own {
+    background: #f6f1e6;
+    font-weight: bold;
+  }
+  .warning {
+    background: #fff3cd;
+    border: 1px solid #c4a56a;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    font-size: 14px;
+  }
+  .small-control {
+    font-size: 12px;
+    background: transparent;
+    color: #435943;
+    border: none;
+    padding: 4px 8px;
+    min-height: auto;
+    width: auto;
+    text-decoration: underline;
+  }
+  .hidden { display: none; }
+  @media (max-width: 390px) {
+    .container { padding: 12px; }
+    h2 { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Four Rounds of Coherence</h1>
+  <p>ENGL 1302 · Wednesday, October 14</p>
+</div>
+<div class="container" id="app">
+  <!-- Screens injected by JS -->
+</div>
+<script>
+const ITEMS = [
+  // Round 1
+  {
+    round: "Something Old / Something New",
+    task: "What is the old word, and what is the new part?",
+    pair: "One important value in Brazilian culture is hospitality. Hospitality to a Brazilian means essentially that your door is always open to friends, relatives, and guests.",
+    choices: [
+      "Old: hospitality. New: what it means to a Brazilian.",
+      "Old: Brazilian culture. New: hospitality.",
+      "Old: door. New: friends and relatives."
+    ],
+    correct: 0,
+    note: "Hospitality ends the first sentence and starts the second. The new part is what hospitality means."
+  },
+  {
+    round: "Something Old / Something New",
+    task: "What is the old word, and what is the new part?",
+    pair: "The exhibit names each source. The exhibit also names one point of alignment and one discrepancy.",
+    choices: [
+      "Old: the exhibit. New: the alignment and the discrepancy.",
+      "Old: alignment. New: each source.",
+      "Old: discrepancy. New: the exhibit names sources."
+    ],
+    correct: 0,
+    note: "The exhibit is picked up. The new part is the alignment and the discrepancy."
+  },
+  {
+    round: "Something Old / Something New",
+    task: "What is the old word, and what is the new part?",
+    pair: "The companion explains the exhibit. The companion answers a how or why question for a named audience.",
+    choices: [
+      "Old: the companion. New: the how or why question and the named audience.",
+      "Old: audience. New: the exhibit.",
+      "Old: question. New: the companion explains the exhibit."
+    ],
+    correct: 0,
+    note: "The companion is picked up. The new part is the question and the audience."
+  },
+  {
+    round: "Something Old / Something New",
+    task: "What is the old word, and what is the new part?",
+    pair: "Two sources agree on the finding. The two sources disagree on the cause.",
+    choices: [
+      "Old: two sources. New: they disagree on the cause.",
+      "Old: the cause. New: the finding.",
+      "Old: the finding. New: two sources exist."
+    ],
+    correct: 0,
+    note: "Two sources is the old idea. The discrepancy on the cause is the new part."
+  },
+  // Round 2
+  {
+    round: "Pronouns",
+    task: "What noun does the pronoun refer to?",
+    pair: "Students write a companion of about 1,000 words. They introduce each quotation.",
+    choices: [
+      "They: students.",
+      "They: the words.",
+      "They: the quotation."
+    ],
+    correct: 0,
+    note: "They is plural. Students is the plural noun."
+  },
+  {
+    round: "Pronouns",
+    task: "What noun does the pronoun refer to?",
+    pair: "The exhibit has four to six research sources. It shows alignment and discrepancy.",
+    choices: [
+      "It: the exhibit.",
+      "It: four to six.",
+      "It: the discrepancy."
+    ],
+    correct: 0,
+    note: "It is singular. The exhibit is the singular noun."
+  },
+  {
+    round: "Pronouns",
+    task: "What noun does the pronoun refer to?",
+    pair: "A help page may sit beside a study. Leave it off the exhibit.",
+    choices: [
+      "It: the help page.",
+      "It: the study.",
+      "It: the exhibit."
+    ],
+    correct: 0,
+    note: "It is singular. The help page is the noun just named."
+  },
+  {
+    round: "Pronouns",
+    task: "What noun does the pronoun refer to?",
+    pair: "The two studies report different rates. They do not use the same sample.",
+    choices: [
+      "They: the two studies.",
+      "They: the rates.",
+      "They: the sample."
+    ],
+    correct: 0,
+    note: "They is plural. The two studies is the plural noun."
+  },
+  // Round 3
+  {
+    round: "Logical connectors",
+    task: "Add the punctuation. Name the relationship.",
+    pair: "Both sources report an increase in use however they name different causes.",
+    choices: [
+      "Both sources report an increase in use; however, they name different causes. Contrast.",
+      "Both sources report an increase in use, however they name different causes. Result.",
+      "Both sources report an increase in use however, they name different causes. Addition."
+    ],
+    correct: 0,
+    note: "Two independent clauses. Semicolon before however. Comma after it. However names a contrast."
+  },
+  {
+    round: "Logical connectors",
+    task: "Add the punctuation. Name the relationship.",
+    pair: "The first study names the cost. The second study meanwhile names the time.",
+    choices: [
+      "The second study, meanwhile, names the time. Contrast.",
+      "The second study meanwhile, names the time. Result.",
+      "The second study; meanwhile names the time. Addition."
+    ],
+    correct: 0,
+    note: "Meanwhile sits in the middle of the second sentence. A comma before and after it."
+  },
+  {
+    round: "Logical connectors",
+    task: "Add the punctuation. Name the relationship.",
+    pair: "While both sources use survey data the first source uses a campus sample and the second uses a national sample.",
+    choices: [
+      "While both sources use survey data, the first source uses a campus sample and the second uses a national sample. Contrast.",
+      "While both sources use survey data the first source, uses a campus sample. Result.",
+      "While both sources use survey data; the first source uses a campus sample. Addition."
+    ],
+    correct: 0,
+    note: "While both opens the sentence. A comma follows the first clause. The relationship is contrast."
+  },
+  {
+    round: "Logical connectors",
+    task: "Add the punctuation. Name the relationship.",
+    pair: "The exhibit names the sources in addition the companion explains the exhibit.",
+    choices: [
+      "The exhibit names the sources; in addition, the companion explains the exhibit. Addition.",
+      "The exhibit names the sources, in addition the companion explains the exhibit. Contrast.",
+      "The exhibit names the sources in addition, the companion explains the exhibit. Result."
+    ],
+    correct: 0,
+    note: "Two independent clauses. Semicolon before in addition. Comma after it. The relationship is addition."
+  },
+  // Round 4
+  {
+    round: "Demonstrative pronouns",
+    task: "Clear noun or needs a noun?",
+    pair: "The exhibit names one point of alignment and one discrepancy. These two points have to be visible on the page.",
+    choices: [
+      "Clear noun. These two points names the alignment and the discrepancy.",
+      "Needs a noun. These has no target.",
+      "Clear noun. These is singular."
+    ],
+    correct: 0,
+    note: "These two points is plural. It names the alignment and the discrepancy."
+  },
+  {
+    round: "Demonstrative pronouns",
+    task: "Clear noun or needs a noun?",
+    pair: "The companion has a how or why question and a named audience. This is important.",
+    choices: [
+      "Needs a noun. This has no clear noun. Rewrite: This question is important.",
+      "Clear noun. This names the audience.",
+      "Clear noun. This is plural."
+    ],
+    correct: 0,
+    note: "This could mean the question, the audience, or the companion. Add the noun."
+  },
+  {
+    round: "Demonstrative pronouns",
+    task: "Clear noun or needs a noun?",
+    pair: "Two studies report different rates. That is why the companion has to name the discrepancy.",
+    choices: [
+      "Needs a noun. That has no clear target. Rewrite: That difference in rates is why the companion has to name the discrepancy.",
+      "Clear noun. That names the companion.",
+      "Clear noun. That is plural."
+    ],
+    correct: 0,
+    note: "That could mean the rates or the studies. Add the noun."
+  },
+  {
+    round: "Demonstrative pronouns",
+    task: "Clear noun or needs a noun?",
+    pair: "The companion uses one introduced quotation in each body paragraph. Those quotations have to match the Works Cited.",
+    choices: [
+      "Clear noun. Those quotations names the introduced quotations.",
+      "Needs a noun. Those has no target.",
+      "Clear noun. Those is singular."
+    ],
+    correct: 0,
+    note: "Those quotations is plural. It names the introduced quotations in the body paragraphs."
+  }
+];
+
+let state = {
+  group: null,
+  current: 0,
+  answers: Array(16).fill(null),
+  score: 0,
+  started: false,
+  finished: false,
+  groups: [] // local only
+};
+
+const STORAGE_KEY = "coherence_1302_groups";
+
+function loadGroups() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveGroups(groups) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
+  } catch (e) {}
+}
+
+function getOwnGroup() {
+  const groups = loadGroups();
+  return groups.find(g => g.name === state.group) || null;
+}
+
+function updateOwnGroup() {
+  let groups = loadGroups();
+  let idx = groups.findIndex(g => g.name === state.group);
+  const entry = {
+    name: state.group,
+    score: state.score,
+    item: state.current + 1,
+    ts: Date.now()
+  };
+  if (idx >= 0) {
+    groups[idx] = entry;
+  } else {
+    groups.push(entry);
+  }
+  saveGroups(groups);
+  return groups;
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function render() {
+  const app = document.getElementById("app");
+  if (!state.group) {
+    renderJoin(app);
+  } else if (!state.started) {
+    renderStart(app);
+  } else if (!state.finished) {
+    renderPlay(app);
+  } else {
+    renderFinish(app);
+  }
+}
+
+function renderJoin(app) {
+  app.innerHTML = `
+    <div class="card">
+      <h2>Join</h2>
+      <label for="gname">Group name</label>
+      <input id="gname" type="text" maxlength="24" placeholder="Enter group name" autocomplete="off">
+      <button id="joinBtn">Join</button>
+      <div id="err" style="color:#7a3b2e; margin-top:8px; font-size:14px;"></div>
+    </div>
+  `;
+  document.getElementById("joinBtn").onclick = () => {
+    const name = document.getElementById("gname").value.trim();
+    const err = document.getElementById("err");
+    if (name.length < 2 || name.length > 24) {
+      err.textContent = "Group name must be 2 to 24 characters.";
+      return;
+    }
+    state.group = name;
+    // Join existing or create
+    updateOwnGroup();
+    render();
+  };
+  document.getElementById("gname").onkeypress = (e) => {
+    if (e.key === "Enter") document.getElementById("joinBtn").click();
+  };
+}
+
+function renderStart(app) {
+  app.innerHTML = `
+    <div class="card">
+      <h2>Four rounds of coherence</h2>
+      <p>Work in groups. Four rounds. Four items in each round. Read the pair. Tap one answer. No timer. You can go back. Your answer stays. The scoreboard shows every group.</p>
+      <ol class="round-list">
+        <li>1. Something Old / Something New. Name the old word and the new part.</li>
+        <li>2. Pronouns. Name the noun the pronoun refers to.</li>
+        <li>3. Logical connectors. Name the relationship and the punctuation.</li>
+        <li>4. Demonstrative pronouns. Clear noun or needs a noun.</li>
+      </ol>
+      <p>Score: 0 / 16</p>
+      <button id="startBtn">Start</button>
+    </div>
+    ${renderScoreboard()}
+  `;
+  document.getElementById("startBtn").onclick = () => {
+    state.started = true;
+    state.current = 0;
+    updateOwnGroup();
+    render();
+  };
+}
+
+function renderPlay(app) {
+  const item = ITEMS[state.current];
+  const answered = state.answers[state.current] !== null;
+  const displayChoices = answered ? null : shuffle(item.choices.map((c, i) => ({text: c, orig: i})));
+  let answersHtml = "";
+  if (!answered) {
+    answersHtml = displayChoices.map(ch => `
+      <button data-orig="${ch.orig}">${ch.text}</button>
+    `).join("");
+  } else {
+    const chosen = state.answers[state.current];
+    const isCorrect = chosen === item.correct;
+    answersHtml = `<div class="feedback ${isCorrect ? 'correct-msg' : 'wrong-msg'}">
+      ${isCorrect ? "Correct." : "That is not the answer."}
+      <div style="margin-top:8px;">${item.note}</div>
+    </div>`;
+  }
+  app.innerHTML = `
+    <div class="card">
+      <div class="item-header">Item ${state.current + 1} of 16 · Score ${state.score} / 16</div>
+      <div class="task">${item.round}. ${item.task}</div>
+      <div class="sentence-pair">${item.pair}</div>
+      <div class="answers" id="answers">${answersHtml}</div>
+      <div class="nav-buttons">
+        <button id="backBtn" ${state.current === 0 ? "disabled" : ""}>Back</button>
+        <button id="fwdBtn">${state.current === 15 ? "Finish" : "Forward"}</button>
+      </div>
+    </div>
+    ${renderScoreboard()}
+  `;
+  if (!answered) {
+    document.querySelectorAll("#answers button").forEach(btn => {
+      btn.onclick = () => {
+        const orig = parseInt(btn.dataset.orig);
+        if (state.answers[state.current] === null) {
+          state.answers[state.current] = orig;
+          if (orig === item.correct) state.score++;
+          updateOwnGroup();
+          render();
+        }
+      };
+    });
+  }
+  document.getElementById("backBtn").onclick = () => {
+    if (state.current > 0) {
+      state.current--;
+      updateOwnGroup();
+      render();
+    }
+  };
+  document.getElementById("fwdBtn").onclick = () => {
+    if (state.current < 15) {
+      state.current++;
+      updateOwnGroup();
+      render();
+    } else {
+      state.finished = true;
+      updateOwnGroup();
+      render();
+    }
+  };
+}
+
+function renderFinish(app) {
+  const skipped = [];
+  state.answers.forEach((a, i) => { if (a === null) skipped.push(i + 1); });
+  let skipHtml = skipped.length ? `<p>Items without an answer: ${skipped.join(", ")}.</p>` : `<p>Every item has an answer.</p>`;
+  app.innerHTML = `
+    <div class="card">
+      <h2>Score: ${state.score} / 16</h2>
+      ${skipHtml}
+      <p>Find one of each move in one body paragraph. If one is missing, add it.</p>
+      <ol>
+        <li>1. Something Old / Something New. Underline the old word. Box the new part.</li>
+        <li>2. Pronoun. Circle it. Draw a line to its noun.</li>
+        <li>3. Logical connector. Star the transition. Check the punctuation. While both. In contrast. Unlike. Meanwhile.</li>
+        <li>4. Demonstrative pronoun. Circle it. Underline its noun. If a partner cannot name it, add the noun.</li>
+      </ol>
+      <p>Two sources in one paragraph. Name the alignment. Then name the discrepancy. Introduce the quotation. Give it. Cite it. Say what it shows. A quotation does not start the paragraph.</p>
+      <p>Sunday, October 18, 11:59 p.m. Exhibit and companion.</p>
+      <button id="againBtn">Start again</button>
+    </div>
+    ${renderScoreboard(true)}
+  `;
+  document.getElementById("againBtn").onclick = () => {
+    state.started = false;
+    state.finished = false;
+    state.current = 0;
+    state.answers = Array(16).fill(null);
+    state.score = 0;
+    updateOwnGroup();
+    render();
+  };
+}
+
+function renderScoreboard(showReset = false) {
+  const groups = loadGroups().sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return a.ts - b.ts;
+  });
+  let rows = groups.map(g => `
+    <tr class="${g.name === state.group ? "own" : ""}">
+      <td>${g.name}</td>
+      <td>${g.score}</td>
+      <td>${g.item}</td>
+    </tr>
+  `).join("");
+  if (!rows) rows = `<tr><td colspan="3">No groups yet.</td></tr>`;
+  return `
+    <div class="warning">Scoreboard is not connected. Your score is on this device.</div>
+    <div class="scoreboard">
+      <table>
+        <thead><tr><th>Group name</th><th>Score</th><th>Item</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${showReset || true ? `<button class="small-control" id="resetBtn">Reset board</button>` : ""}
+  `;
+}
+
+function attachReset() {
+  const btn = document.getElementById("resetBtn");
+  if (btn) {
+    btn.onclick = () => {
+      if (confirm("Reset the board for every group?")) {
+        localStorage.removeItem(STORAGE_KEY);
+        state.group = null;
+        state.started = false;
+        state.finished = false;
+        state.current = 0;
+        state.answers = Array(16).fill(null);
+        state.score = 0;
+        render();
+      }
+    };
+  }
+}
+
+// Initial
+render();
+setInterval(() => {
+  if (state.group) {
+    // Refresh scoreboard if on play or finish
+    const app = document.getElementById("app");
+    if (state.started) {
+      // re-render to update board, but preserve if not needed
+    }
+  }
+}, 3000);
+
+document.addEventListener("click", attachReset);
+</script>
+</body>
+</html>
